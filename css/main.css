@@ -1,0 +1,48 @@
+h1 {
+  font-family: HelveticaNeue-Bold;
+  text-align: center;
+}
+
+h5 {
+  font-family: HelveticaNeue-Bold;
+  text-align: center;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table thead tr {
+  font-family: HelveticaNeue-Bold;
+  background: #D5DFE9;
+}
+
+table thead tr th {
+  padding: 7px;
+}
+
+table thead tr th:hover {
+  background: #98A9B9;
+}
+
+table tbody tr {
+  border: #E9ECEF 1px solid;
+  font-family: HelveticaNeue;
+}
+
+table tbody tr:nth-child(even) {
+  background-color: #F6F7F9;
+}
+
+table tbody tr:nth-child(odd) {
+  background-color: white;
+}
+
+table tbody tr:hover {
+  background-color: #E9ECEF;
+}
+
+table tbody tr td {
+  padding: 7px;
+}

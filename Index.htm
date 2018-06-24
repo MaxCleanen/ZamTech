@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width">
+	
+	<script src="Scripts/socket.io.js"></script>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script src="Scripts/vue.js"></script>
+    <script src="Scripts/vuex.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="css/main.css">
+	<title>Real time bitcoin block explorer.</title>
+</head>
+<body>	
+	<h1>Real time bitcoin block explorer.</h1>
+	<div id ="app">
+		<h5>{{sortOrder == 1 ? '&#8593;': '&#8595;'}} by {{sortingColumn}}</h5>
+		
+		<table>
+			<thead>
+				<tr>
+					<th>Hash</th>
+					<th v-on:click="store.commit('sortBlocks','size')">Size</th>
+					<th v-on:click="store.commit('sortBlocks','height')">Height</th>
+					<th v-on:click="store.commit('sortBlocks','time')">Time</th>
+					<th v-on:click="store.commit('sortBlocks','difficulty')">Difficulty</th>
+					<th v-on:click="store.commit('sortBlocks','confirmations')">Confirmations</th>
+					<th v-on:click="store.commit('sortBlocks','reward')">Reward</th>
+					<th v-on:click="store.commit('sortBlocks','txCount')">Tx in block</th>
+					<th>Prevous Block</th>
+				</tr>	
+			</thead>
+			<tbody>
+				<tr v-for="item in blocks">
+					<td>{{item.hash.slice(-10)}}</td>
+					<td>{{item.size}}</td>
+					<td>{{item.height}}</td>
+					<td>{{item.time}}</td>
+					<td>{{parseInt(item.difficulty)}}</td>
+					<td>{{item.confirmations}}</td>
+					<td>{{item.reward}}</td>
+					<td>{{item.txCount}}</td>
+					<td>{{item.previousblockhash.slice(-10)}}</td>
+				</tr>
+			</tbody>
+			
+		</table>
+	</div>
+	<script>
+
+		var HTTP = axios.create({
+			baseURL:`https://blockexplorer.com/api`,//Чтобы не писать URL каждый раз
+		})
+
+		const store = new Vuex.Store({
+			state:{
+				blocks:[],
+				sortOrder:1,//По умолчанию сортировка по возрастанию
+				sortingColumn:'time'//По умолчанию, сортировка по колонке Time (от старых к новым блокам)
+			},
+			mutations:{
+				pushNewBlock(state, n){
+					//Добавление нового блока в хранилище 
+					var newBlockData ={
+						hash: n.hash,
+						size: n.size,
+						height: n.height,
+						time: n.time,
+						difficulty: n.difficulty,
+						confirmations: n.confirmations,
+						reward: n.reward,
+						txCount: n.tx.length,
+						previousblockhash: n.previousblockhash
+					}
+					state.blocks.push(newBlockData);
+
+					//Упорядочиваем обновленный массив в соответствии с установленным методом сортировки
+					state.blocks.sort(function (a,b) {
+				        var result = (a[state.sortingColumn] < b[state.sortingColumn]) ? -1 : (a[state.sortingColumn] > b[state.sortingColumn]) ? 1 : 0;
+				        return result * state.sortOrder;
+			    	});
+				},
+				sortBlocks(state,property){
+					
+					//Сортировка таблицы по выбраному ключу(при клике по названию колонки)
+					if(state.sortingColumn !== property){
+						//Если колонка сортировки изменилась, сортируем сначала по возрастанию
+						state.sortOrder = 1;
+					}
+					else
+					{
+						//Меняем направление сортировки, если по этой колонке уже применена сортировка 
+						state.sortOrder = state.sortOrder * -1;	
+					}
+					state.sortingColumn = property;
+
+					state.blocks.sort(function (a,b) {
+				        var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+				        return result * state.sortOrder;
+			    	});
+				}
+			}
+		})
+
+		const app = new Vue ({
+			el: '#app',
+			store,
+			created: function () {
+				//Сразу при создании экземляра Vue поулчаем последний блок 
+		    	getLastBlock()
+		  	},
+			computed: Vuex.mapState(['blocks','sortOrder','sortingColumn'])//Привязываем Vue к Vuex
+		});
+
+		function getLastBlock()
+		{
+			//Функция получает последний блок в системе
+			//вызывается один раз - при создании экземпляра Vue
+
+			//На случай если API по какой-то причине не отработает запрос, 
+   			//вызываем метод рекурсивно раз в секунду 
+   			//пока не получим ответ со статусом 2хх 
+			HTTP.get("status?q=getLastBlockHash")
+				.then(r=>{
+					HTTP.get("block/"+r.data.lastblockhash)
+						.then(response=>{
+							store.commit('pushNewBlock',response.data);	
+						})
+						.catch(e=>{
+							setTimeout(1000);
+							getLastBlock();//рекурсия
+						})	
+				})
+				.catch(e=>{
+					setTimeout(1000);
+					getLastBlock();//рекурсия
+				})
+		}
+
+		function tryGetNewBlock(data) 
+	    {
+	    	//Функция получает информацию о блоке по идентификатору, пришедшему от сокета
+			
+			//На случай если API по какой-то причине не отработает запрос, 
+   			//вызываем метод рекурсивно раз в секунду 
+   			//пока не получим ответ со статусом 2хх 
+	    	HTTP.get("block/"+data)
+				.then(response=>{
+					store.commit('pushNewBlock',response.data);
+				})
+				.catch(e=>{
+					setTimeout(1000);
+					tryGetNewBlock(data);//рекурсия
+				})
+	    }
+
+
+	    //Код ниже взят из документации к API, 
+	    //только подписывается не на новый транзакции, а на новые блоки
+	    room = 'inv';
+	    var socket = io("https://blockexplorer.com/");
+	    socket.on('connect', function() {
+	      socket.emit('subscribe', room);
+	    })
+	    socket.on('block', function(data) {
+	    	tryGetNewBlock(data);
+		})
+	</script>
+</body>
+
+
+</html>
+
+

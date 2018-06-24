@@ -1,0 +1,38 @@
+$oddRowColor: white
+$evenRowColor: #F6F7F9
+$onHoverRowColor: #E9ECEF
+$boldFont: HelveticaNeue-Bold
+$normalFont: HelveticaNeue
+$cellPadding: 7px
+$headerColor: #D5DFE9
+$onHeaderHoverColor: #98A9B9
+
+h1
+	font-family: $boldFont
+	text-align: center
+h5
+	font-family: $boldFont
+	text-align: center
+table
+	border-collapse: collapse
+	width: 100%
+	thead
+		tr
+			font-family: $boldFont
+			background: $headerColor
+			th
+				padding: $cellPadding
+				&:hover
+					background: $onHeaderHoverColor
+	tbody
+		tr
+			border: $onHoverRowColor 1px solid
+			font-family: $normalFont
+			&:nth-child(even)
+				background-color: $evenRowColor
+			&:nth-child(odd)
+				background-color: $oddRowColor
+			&:hover
+				background-color: $onHoverRowColor
+			td
+				padding: $cellPadding
